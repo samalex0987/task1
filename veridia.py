@@ -88,6 +88,117 @@ async def login_to_asite(email, password):
         st.sidebar.error(f"❌ Login error: {str(e)}")
         return None
 
+# COS File Fetching Function
+@function_timer()
+def get_cos_files():
+    try:
+        cos_client = initialize_cos_client()
+        if not cos_client:
+            st.error("❌ Failed to initialize COS client.")
+            return []
+
+        response = cos_client.list_objects_v2(Bucket=COS_BUCKET, Prefix="Veridia/")
+        if 'Contents' not in response:
+            st.error(f"❌ No files found in the 'Veridia' folder of bucket '{COS_BUCKET}'. Please ensure the folder exists and contains files.")
+            logger.error("No objects found in Veridia folder")
+            return []
+
+        all_files = [obj['Key'] for obj in response.get('Contents', [])]
+        st.write("**All files in Veridia folder:**")
+        if all_files:
+            st.write("\n".join(all_files))
+        else:
+            st.write("No files found.")
+            logger.warning("Veridia folder is empty")
+            return []
+
+        # Pattern for Finishing Tracker files
+        finishing_pattern = re.compile(
+            r"Veridia/Tower\s*([4|5])\s*Finishing\s*Tracker[\(\s]*(.*?)(?:[\)\s]*\.xlsx)$",
+            re.IGNORECASE
+        )
+        # Pattern for Anti. Slab Cycle file
+        slab_cycle_pattern = re.compile(
+            r"Veridia/Veridia Anti\. Slab Cycle With Possesion dates.*\.xlsx$",
+            re.IGNORECASE
+        )
+
+        date_formats = [
+            "%d-%m-%Y", "%d-%m-%y", "%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y"
+        ]
+
+        file_info = []
+        for obj in response.get('Contents', []):
+            key = obj['Key']
+            # Check for Finishing Tracker files
+            finishing_match = finishing_pattern.match(key)
+            if finishing_match:
+                tower_num = finishing_match.group(1)
+                date_str = finishing_match.group(2).strip('()').strip()
+                parsed_date = None
+                
+                for fmt in date_formats:
+                    try:
+                        parsed_date = datetime.strptime(date_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                
+                if parsed_date:
+                    file_info.append({
+                        'key': key,
+                        'tower': tower_num,
+                        'date': parsed_date,
+                        'type': 'finishing'
+                    })
+                else:
+                    logger.warning(f"Could not parse date in filename: {key} (date: {date_str})")
+                    st.warning(f"Skipping file with unparseable date: {key}")
+            # Check for Anti. Slab Cycle file
+            elif slab_cycle_pattern.match(key):
+                # No date parsing needed since the filename doesn't include a date
+                file_info.append({
+                    'key': key,
+                    'tower': None,  # No specific tower associated
+                    'date': obj['LastModified'],  # Use LastModified timestamp
+                    'type': 'slab_cycle'
+                })
+
+        if not file_info:
+            st.error("❌ No Excel files matched the expected patterns in the 'Veridia' folder. Expected formats: 'Tower 4/5 Finishing Tracker(date).xlsx' or 'Veridia Anti. Slab Cycle With Possesion dates*.xlsx'.")
+            logger.error("No files matched the expected patterns")
+            return []
+
+        # Separate Finishing and Slab Cycle files
+        finishing_files = {}
+        slab_cycle_files = []
+        for info in file_info:
+            if info['type'] == 'finishing':
+                tower = info['tower']
+                if tower not in finishing_files or info['date'] > finishing_files[tower]['date']:
+                    finishing_files[tower] = info
+            elif info['type'] == 'slab_cycle':
+                slab_cycle_files.append(info)
+
+        # Select the latest Slab Cycle file (if multiple exist)
+        if slab_cycle_files:
+            latest_slab_file = max(slab_cycle_files, key=lambda x: x['date'])
+            files = [info['key'] for info in finishing_files.values()] + [latest_slab_file['key']]
+        else:
+            files = [info['key'] for info in finishing_files.values()]
+
+        if not files:
+            st.error("❌ No valid Excel files found for Tower 4, Tower 5, or Anti. Slab Cycle after filtering.")
+            logger.error("No valid files after filtering")
+            return []
+
+        st.success(f"Found {len(files)} matching files: {', '.join(files)}")
+        return files
+    except Exception as e:
+        st.error(f"❌ Error fetching COS files: {str(e)}")
+        logger.error(f"Error fetching COS files: {str(e)}")
+        return []
+
 @function_timer()
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def get_access_token(api_key):
