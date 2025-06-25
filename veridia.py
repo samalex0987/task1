@@ -30,6 +30,7 @@ from io import BytesIO
 import traceback
 from veridia1 import *
 from datetime import date
+import time
 import concurrent.futures
 from dateutil.relativedelta import relativedelta
 
@@ -2609,6 +2610,7 @@ async def initialize_and_fetch_data(email, password):
             st.sidebar.error(f"Login failed: {str(e)}")
             return False
 
+        time.sleep(2000)
         # Step 2: Get Workspace ID
         try:
             st.sidebar.write("Fetching Workspace ID...")
@@ -2618,6 +2620,7 @@ async def initialize_and_fetch_data(email, password):
             st.sidebar.error(f"Failed to fetch Workspace ID: {str(e)}")
             return False
 
+        time.sleep(2000)
         # Step 3: Get Project IDs
         try:
             st.sidebar.write("Fetching Project IDs...")
@@ -2627,6 +2630,7 @@ async def initialize_and_fetch_data(email, password):
             st.sidebar.error(f"Failed to fetch Project IDs: {str(e)}")
             return False
 
+        time.sleep(2000)
         # Step 4: Get All Data
         try:
             st.sidebar.write("Fetching All Data...")
@@ -2644,6 +2648,7 @@ async def initialize_and_fetch_data(email, password):
             return False
 
        
+        time.sleep(2000)
         # Step 5: Get Activity Data
         try:
             st.sidebar.write("Fetching Activity Data...")
@@ -2683,6 +2688,7 @@ async def initialize_and_fetch_data(email, password):
             logger.error(f"Failed to fetch Activity Data: {str(e)}\nStack trace:\n{traceback.format_exc()}")
             return False
 
+        time.sleep(2000)
         # Step 6: Get Location/Module Data
         try:
             st.sidebar.write("Fetching Location/Module Data...")
@@ -2722,6 +2728,7 @@ async def initialize_and_fetch_data(email, password):
             logger.error(f"Failed to fetch Location/Module Data: {str(e)}\nStack trace:\n{traceback.format_exc()}")
             return False
         
+        time.sleep(2000)
         # Step 7: Fetch COS Files
         try:
             st.sidebar.write("Fetching COS files from Veridia folder...")
@@ -2802,6 +2809,7 @@ async def initialize_and_fetch_data(email, password):
             logger.error(f"Failed to fetch COS files: {str(e)}")
             return False
 
+        time.sleep(2000)
         # Step 8: Verify stored session state keys
         st.sidebar.write("Verifying stored data...")
         required_keys = [
