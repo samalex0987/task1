@@ -1,0 +1,11 @@
+streamlit 
+requests 
+pandas 
+python-dotenv 
+aiohttp 
+openpyxl 
+python-dateutil 
+ibm-cos-sdk 
+tenacity
+xlsxwriter
+openpyxl
